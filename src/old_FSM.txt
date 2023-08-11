@@ -1,0 +1,254 @@
+/* THE BRAINS OF THE OPERATION */
+void setup() {
+  /* PINMODE FOR ALL OUTPUT PINS */
+  for (int i = 0; i < 17; i++) {
+    pinMode(OUTPUT_PIN_LS[i], OUTPUT);
+  }
+  
+  /* START SERIAL MONITOR */
+  Serial.begin(9600);
+
+  /* SET UP SENSORS */
+  attachInterrupt(digitalPinToInterrupt(LEFT_MTR_ENC_PIN), count1, FALLING);
+  attachInterrupt(digitalPinToInterrupt(RIGHT_MTR_ENC_PIN), count2, FALLING);
+  tcs.begin();
+}
+
+void loop() {
+  /* UPDATE INPUTS */
+  // Start button
+  SRT = game_mode_select();
+//  Serial.print("Input varaibles: ");
+//  Serial.print(SRT);
+//  Serial.print(DRED);
+//  Serial.print(DBLU);
+//  Serial.print(DYLW);
+//  Serial.print(RED);
+//  Serial.print(BLU);
+//  Serial.print(YLW);
+//  Serial.print(ECDR);
+//  Serial.print(LEFT);
+//  Serial.print(RGHT);
+//  Serial.print(MOLE);
+//  Serial.print("\tOutput variables: ");
+//  Serial.print(LMTR);
+//  Serial.print(RMTR);
+//  Serial.print(PLCE);
+//  Serial.println(LED);
+//  Serial.print("State variable: ");
+//  Serial.println(state);
+
+  Serial.print("Desired Encoder Counts (FWD): ");
+  Serial.println(fwd_dpulses1);
+
+  // Color selection buttons
+  colorSelection();
+
+  // Analog IR sensor
+  MOLE = 1; // checkForMole();
+
+  // Color sensor
+  readColor();
+
+  // Get the current movement progress
+  checkPos();
+
+  /* FINITE STATE MACHINE */
+
+  switch(state) {
+
+    /* ROBOT IN OFF STATE*/
+    case S0:
+      Serial.println("State 0");
+      // Set outputs
+      LMTR = 0;
+      RMTR = 0;
+      PLCE = 0;
+      LED = 0; 
+
+      // Decide next state
+      if (not SRT and DRED and not DBLU and not DYLW){
+        Serial.println("Going to state 1");
+        state = S1;
+      }
+      else if (not SRT and not DRED and DBLU and not DYLW){
+        state = S2;
+      }
+      else if (not SRT and not DRED and not DBLU and DYLW){
+        state = S3;
+      }
+      else{
+        state = S0;
+      }
+    
+    break;
+
+    case S1:
+      Serial.println("State 1");
+      // Set outputs
+      LMTR = 0;
+      RMTR = 0;
+      PLCE = 0;
+      LED = 1; 
+
+      // Decide next state
+      if (SRT and DRED and not DBLU and not DYLW and MOLE){
+        state = S4;
+      }
+      else{
+        state = S1;
+      }
+    break;
+
+    case S2:
+      Serial.println("State 2");
+      // Set outputs
+      LMTR = 0;
+      RMTR = 0;
+      PLCE = 0;
+      LED = 1; 
+
+      // Decide next state
+      if (SRT and not DRED and DBLU and not DYLW and MOLE){
+        state = S4;
+      }
+      else{
+        state = S2;
+      }
+
+    break;
+
+    case S3:
+      Serial.println("State 3");
+      // Set outputs
+      LMTR = 0;
+      RMTR = 0;
+      PLCE = 0;
+      LED = 1; 
+
+      // Decide next state
+      if (SRT and not DRED and not DBLU and DYLW and MOLE){
+        state = S4;
+      }
+      else{
+        state = S3;
+      }
+
+    break;
+
+    case S4:
+    Serial.println("State 4");
+    // Set outputs
+    LMTR = 1;
+    RMTR = 1;
+    PLCE = 0;
+    LED = 0; 
+
+    // Decide next state
+    if ((SRT and DRED and not DBLU and not DYLW and RED and not BLU and not YLW and ECDR and MOLE) or (SRT and not DRED and DBLU and not DYLW and not RED and BLU and not YLW and ECDR and MOLE) or (SRT and not DRED and not DBLU and DYLW and not RED and not BLU and YLW and ECDR and MOLE)){
+      state = S7;
+    }
+    else if (SRT and ECDR and LEFT and not RGHT){
+      state = S5;
+    }
+    else if (SRT and ECDR and not LEFT and RGHT){
+      state = S6;
+    }
+    else if (SRT and not LEFT and not RGHT and not ECDR){
+      state = S4;
+    }
+    else{
+      state = S0;
+    }
+    
+    break;
+
+    case S5:
+    Serial.println("State 5");
+    // Set outputs
+    LMTR = 0;
+    RMTR = 1;
+    PLCE = 0;
+    LED = 0; 
+
+    // Decide next state
+    if (SRT and LEFT and not RGHT and not ECDR){
+      state = S5;
+    }
+    else{
+      state = S4;
+    }
+    
+    break;
+
+    case S6:
+    Serial.println("State 6");
+    // Set outputs
+    LMTR = 1;
+    RMTR = 0;
+    PLCE = 0;
+    LED = 0; 
+
+    // Decide next state
+    if (SRT and not LEFT and RGHT and not ECDR){
+      state = S6;
+    }
+    else{
+      state = S4;
+    }
+    
+    break;
+
+    case S7:
+    Serial.println("State 7");
+    // Set outputs
+    LMTR = 0;
+    RMTR = 0;
+    PLCE = 1;
+    LED = 0; 
+
+    // Decide next state
+    if (SRT and not MOLE){
+      state = S7;
+    }
+    else if (SRT and not LEFT and not RGHT and not ECDR){
+      state = S4;
+    }
+    else if (SRT and LEFT and not RGHT and not ECDR){
+      state = S5;
+    }
+    else if (SRT and not LEFT and RGHT and not ECDR){
+      state = S6;
+    }
+    else{
+      state = S0;
+    }
+
+    break;
+    
+  }
+  
+  /* IMPLEMENT OUPUTS */
+  // Drive Motors
+  if (LMTR and RMTR) {
+    forward();
+  }
+  else if (LMTR and not RMTR) {
+    turn_left();
+  }
+  else if (not LMTR and RMTR) {
+    turn_right();
+  }
+  else {
+    stop_motors();
+  }
+
+  // Place Mole
+  if (PLCE) {
+    dispense(STEPS);
+  }
+
+  // Display LEDs
+  ledStates();
+  
+}
